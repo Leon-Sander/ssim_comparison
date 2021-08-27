@@ -2,15 +2,23 @@ from pytorch_msssim import ssim, ms_ssim
 import numpy as np
 import torch
 from skimage.metrics import structural_similarity as ssim_skimage
+from online_codes import sp_ssim
 import tensorflow as tf
 import matlab.engine
 import cv2
 import os
+import logging
+import sys
 # to diseable tensorflow gpu warnings which are irrelevant here
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
+logging.basicConfig(format='%(message)s',filename='output.log', level=logging.INFO)
 img1_path = "images/1_1.jpg"
-img2_path = "images/1_2.jpg"
+img2_path = "images/2_1.jpg"
+
+#img1_path = "images/black.png"
+#img2_path = "images/white.png"
+#img2_path = img1_path
+logging.info("img1: " + img1_path + ", img2: " + img2_path)
 
 def calculate_pytorch_ssims(img1_path, img2_path):
     #https://github.com/VainF/pytorch-msssim/blob/master/tests/tests_loss.py
@@ -60,20 +68,48 @@ def calculate_matlab_ssim(img1_path,img2_path):
     ssims = ssim_list[0][0:-1]
     return ms, ssims
 
-ssim_pytorch, ms_ssim_pytorch = calculate_pytorch_ssims(img1_path, img2_path)
-ssim_ski = calculate_ski_ssim(img1_path, img2_path)
-ssim_tf, ms_ssim_tf = calculate_tf_ssims(img1_path, img2_path)
-ms_ssim_matlab, ssim_list_matlab = calculate_matlab_ssim(img1_path, img2_path)
+def calculate_signal_processing_msssim(img1_path,img2_path):
+    #https://mubeta06.github.io/python/sp/_modules/sp/ssim.html
+    ssim_map, msssim_metric = sp_ssim.calculate_metrics(img1_path, img2_path)
+    return msssim_metric
 
+def calculate_all_metrics(img1_path, img2_path):
 
-print("#########SSIM################")
-print("Pytorch ssim: %f" % (ssim_pytorch))
-print("Tensorflow ssim: %f" % (ssim_tf))
-print("Skimage ssim: %f" % (ssim_ski))
-print("Matlab ssim_list: " + str(ssim_list_matlab))
+    ssim_pytorch, ms_ssim_pytorch = calculate_pytorch_ssims(img1_path, img2_path)
+    ssim_ski = calculate_ski_ssim(img1_path, img2_path)
+    ssim_tf, ms_ssim_tf = calculate_tf_ssims(img1_path, img2_path)
+    ms_ssim_matlab, ssim_list_matlab = calculate_matlab_ssim(img1_path, img2_path)
+    ms_ssim_sp = calculate_signal_processing_msssim(img1_path,img2_path)
+    return ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp
 
-print("\n#########MS-SSIM################")
-print("Pytorch ms_ssim: %f" % (ms_ssim_pytorch))
-print("Tensorflow ms_ssim: %f" % (ms_ssim_tf))
-print("Matlab ms_ssim: %f" % (ms_ssim_matlab))
+def print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp):
+    print("#########SSIM################")
+    print("Pytorch ssim: %f" % (ssim_pytorch))
+    print("Tensorflow ssim: %f" % (ssim_tf))
+    print("Skimage ssim: %f" % (ssim_ski))
+    print("Matlab ssim_list: " + str(ssim_list_matlab))
+
+    print("\n#########MS-SSIM################")
+    print("Pytorch ms_ssim: %f" % (ms_ssim_pytorch))
+    print("Tensorflow ms_ssim: %f" % (ms_ssim_tf))
+    print("Matlab ms_ssim: %f" % (ms_ssim_matlab))
+    print("Signal Processing ms_ssim: %f" % (ms_ssim_sp))
+
+def log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp):
+    logging.info("#########SSIM################")
+    logging.info("Pytorch ssim: %f" % (ssim_pytorch))
+    logging.info("Tensorflow ssim: %f" % (ssim_tf))
+    logging.info("Skimage ssim: %f" % (ssim_ski))
+    logging.info("Matlab ssim_list: " + str(ssim_list_matlab))
+
+    logging.info("\n#########MS-SSIM################")
+    logging.info("Pytorch ms_ssim: %f" % (ms_ssim_pytorch))
+    logging.info("Tensorflow ms_ssim: %f" % (ms_ssim_tf))
+    logging.info("Matlab ms_ssim: %f" % (ms_ssim_matlab))
+    logging.info("Signal Processing ms_ssim: %f" % (ms_ssim_sp))
+    logging.info("\n")
+
+ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp = calculate_all_metrics(img1_path,img2_path)
+print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp)
+log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp)
 
