@@ -1,4 +1,5 @@
 from pytorch_msssim import ssim, ms_ssim
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from skimage.metrics import structural_similarity as ssim_skimage
@@ -63,10 +64,10 @@ def calculate_tf_ssims(img1_path, img2_path):
 def calculate_matlab_ssim(img1_path,img2_path):
     
     eng = matlab.engine.start_matlab()
-    ssim_list = eng.msssim(img1_path,img2_path)
+    ssim_list, img1_grayscale, img2_grayscale = eng.msssim(img1_path,img2_path,nargout=3)
     ms = ssim_list[0][-1]
-    ssims = ssim_list[0][0:-1]
-    return ms, ssims
+    ssim = ssim_list[0][0]
+    return ms, ssim, img1_grayscale, img2_grayscale
 
 def calculate_signal_processing_msssim(img1_path,img2_path):
     #https://mubeta06.github.io/python/sp/_modules/sp/ssim.html
@@ -78,16 +79,25 @@ def calculate_all_metrics(img1_path, img2_path):
     ssim_pytorch, ms_ssim_pytorch = calculate_pytorch_ssims(img1_path, img2_path)
     ssim_ski = calculate_ski_ssim(img1_path, img2_path)
     ssim_tf, ms_ssim_tf = calculate_tf_ssims(img1_path, img2_path)
-    ms_ssim_matlab, ssim_list_matlab = calculate_matlab_ssim(img1_path, img2_path)
+    ms_ssim_matlab, ssim_matlab, img1_grayscale, img2_grayscale = calculate_matlab_ssim(img1_path, img2_path)
     ms_ssim_sp = calculate_signal_processing_msssim(img1_path,img2_path)
-    return ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp
+    return ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp
 
-def print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp):
+def calculate_all_metrics_and_grayscale(img1_path, img2_path):
+
+    ssim_pytorch, ms_ssim_pytorch = calculate_pytorch_ssims(img1_path, img2_path)
+    ssim_ski = calculate_ski_ssim(img1_path, img2_path)
+    ssim_tf, ms_ssim_tf = calculate_tf_ssims(img1_path, img2_path)
+    ms_ssim_matlab, ssim_matlab, img1_grayscale, img2_grayscale = calculate_matlab_ssim(img1_path, img2_path)
+    ms_ssim_sp = calculate_signal_processing_msssim(img1_path,img2_path)
+    return img1_grayscale, img2_grayscale ,ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp 
+
+def print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp):
     print("#########SSIM################")
     print("Pytorch ssim: %f" % (ssim_pytorch))
     print("Tensorflow ssim: %f" % (ssim_tf))
     print("Skimage ssim: %f" % (ssim_ski))
-    print("Matlab ssim_list: " + str(ssim_list_matlab))
+    print("Matlab ssim: %f" % (ssim_matlab))
 
     print("\n#########MS-SSIM################")
     print("Pytorch ms_ssim: %f" % (ms_ssim_pytorch))
@@ -95,12 +105,12 @@ def print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_
     print("Matlab ms_ssim: %f" % (ms_ssim_matlab))
     print("Signal Processing ms_ssim: %f" % (ms_ssim_sp))
 
-def log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp):
+def log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp):
     logging.info("#########SSIM################")
     logging.info("Pytorch ssim: %f" % (ssim_pytorch))
     logging.info("Tensorflow ssim: %f" % (ssim_tf))
     logging.info("Skimage ssim: %f" % (ssim_ski))
-    logging.info("Matlab ssim_list: " + str(ssim_list_matlab))
+    logging.info("Matlab ssim: %f" % (ssim_matlab))
 
     logging.info("\n#########MS-SSIM################")
     logging.info("Pytorch ms_ssim: %f" % (ms_ssim_pytorch))
@@ -109,7 +119,49 @@ def log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf
     logging.info("Signal Processing ms_ssim: %f" % (ms_ssim_sp))
     logging.info("\n")
 
-ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp = calculate_all_metrics(img1_path,img2_path)
-print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp)
-log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_list_matlab, ms_ssim_sp)
+def plt_results(img1_path,img2_path, img1_grayscale, img2_grayscale ,ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp):
+    img1 = np.array(cv2.imread(img1_path))
+    img2 = np.array(cv2.imread(img2_path))
+
+    ssim_metrics = [float(ssim_pytorch), float(ssim_tf), ssim_matlab, ssim_ski]
+    ssim_names = ['pytorch','tf','matlab','ski']
+
+    ms_ssim_metrics = [float(ms_ssim_pytorch), float(ms_ssim_tf), ms_ssim_matlab, ms_ssim_sp]
+    ms_ssim_names = ['pytorch','tf','matlab','sp']
+
+    fig, (ax0, ax5, ax1, ax2, ax3, ax4) = plt.subplots(1,6, figsize=(25,5))
+
+
+    bars_ssim = ax0.bar(ssim_names, ssim_metrics)
+    for bar in bars_ssim:
+        yval = bar.get_height()
+        ax0.text(bar.get_x(), yval + 0.01, round(yval,4),color='black', fontweight='bold')
+    ax0.set_ylim([0,1])
+    ax0.set_title('ssim comparison')
+
+    bars_msssim = ax5.bar(ms_ssim_names, ms_ssim_metrics)
+    for bar in bars_msssim:
+        yval = bar.get_height()
+        ax5.text(bar.get_x(), yval + 0.01, round(yval,4),color='black', fontweight='bold' )
+    ax5.set_ylim([0,1])
+    ax5.set_title('ms_ssim comparison')
+
+    ax1.imshow(img1)
+    ax1.set_title('img1')
+    ax1.axis('off')
+
+    ax2.imshow(img2)
+    ax2.set_title('img2')
+    #ax2.axis('off')
+
+    ax3.imshow(img1_grayscale)
+    ax3.set_title('img1_grayscale')
+    ax3.axis('off')
+
+    ax4.imshow(img2_grayscale)
+    ax4.set_title('img2_grayscale')
+    #ax4.axis('off')
+#ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp = calculate_all_metrics(img1_path,img2_path)
+#print_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp)
+#log_all_metrics(ssim_pytorch, ms_ssim_pytorch, ssim_ski, ssim_tf, ms_ssim_tf, ms_ssim_matlab, ssim_matlab, ms_ssim_sp)
 
